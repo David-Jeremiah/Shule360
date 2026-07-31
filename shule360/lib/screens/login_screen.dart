@@ -32,12 +32,14 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!doc.exists) {
         throw StateError('No user profile found for this account.');
       }
+      debugPrint('FIRESTORE DOC DATA: ${doc.data()}');
       final appUser = AppUser.fromMap(doc.id, doc.data()!);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => HomeScreen(user: appUser)),
       );
     } catch (e) {
+      debugPrint('LOGIN ERROR: $e');
       setState(() => _errorMessage = 'Could not sign in. Check your details and try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
