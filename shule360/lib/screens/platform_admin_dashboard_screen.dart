@@ -3,7 +3,7 @@ import '../models/school.dart';
 import '../services/platform_admin_service.dart';
 import 'add_school_screen.dart';
 import 'platform_team_screen.dart';
-
+import 'school_detail_screen.dart';
 
 class PlatformAdminDashboardScreen extends StatefulWidget {
   const PlatformAdminDashboardScreen({super.key});
@@ -87,64 +87,154 @@ class _SchoolsListTab extends StatelessWidget {
   final PlatformAdminService service;
   const _SchoolsListTab({required this.service});
 
+  Color _brandColorFor(School s) {
+    try {
+      final hex = s.primaryColorHex.replaceFirst('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return const Color(0xFF1F4E5C);
+    }
+  }
+
+  String _tierLabel(SubscriptionTier tier) => switch (tier) {
+    SubscriptionTier.starter => 'Starter',
+    SubscriptionTier.standard => 'Standard',
+    SubscriptionTier.full => 'Full',
+  };
+
+  String _levelLabel(SchoolLevel level) => switch (level) {
+    SchoolLevel.primary => 'Primary',
+    SchoolLevel.secondary => 'Secondary',
+    SchoolLevel.both => 'Primary & Secondary',
+  };
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<School>>(
       stream: service.watchAllSchools(),
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
         final schools = snapshot.data ?? [];
         if (schools.isEmpty) {
-          return const Center(child: Text('No schools onboarded yet.'));
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.school_outlined, size: 48, color: Theme.of(context).colorScheme.outline),
+                const SizedBox(height: 12),
+                const Text('No schools onboarded yet.'),
+              ],
+            ),
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.all(24),
           itemCount: schools.length,
           itemBuilder: (context, index) {
             final s = schools[index];
+            final brand = _brandColorFor(s);
+            final statusColor = s.isWithinGracePeriod ? Colors.green : Colors.red;
+
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
               elevation: 0,
+              clipBehavior: Clip.antiAlias,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: s.isWithinGracePeriod
-                          ? Colors.green.withOpacity(0.15)
-                          : Colors.red.withOpacity(0.15),
-                      child: Icon(
-                        s.isWithinGracePeriod ? Icons.check_circle : Icons.warning,
-                        color: s.isWithinGracePeriod ? Colors.green : Colors.red,
+              child: InkWell(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => SchoolDetailScreen(school: s)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: brand.withOpacity(0.12),
+                        backgroundImage: s.logoUrl != null ? NetworkImage(s.logoUrl!) : null,
+                        child: s.logoUrl == null
+                            ? Text(
+                          s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
+                          style: TextStyle(color: brand, fontWeight: FontWeight.bold, fontSize: 18),
+                        )
+                            : null,
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(s.name, style: Theme.of(context).textTheme.titleMedium),
-                          const SizedBox(height: 4),
-                          Text('${s.district} • ${s.level.name} • ${s.tier.name} tier • slug: ${s.slug}'),
-                          if (s.contactPersonName != null)
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    s.name,
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        s.isWithinGracePeriod ? Icons.check_circle : Icons.warning_amber_rounded,
+                                        size: 12,
+                                        color: statusColor,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        s.isWithinGracePeriod ? 'Active' : 'Lapsed',
+                                        style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
                             Text(
-                              'Contact: ${s.contactPersonName}${s.contactPersonPhone != null ? ' (${s.contactPersonPhone})' : ''}',
+                              '${s.district} • ${_levelLabel(s.level)} • ${_tierLabel(s.tier)} tier',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
-                        ],
+                            Text(
+                              'slug: ${s.slug}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                            ),
+                            if (s.contactPersonName != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Contact: ${s.contactPersonName}${s.contactPersonPhone != null ? ' (${s.contactPersonPhone})' : ''}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => AddSchoolScreen(existingSchool: s)),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        tooltip: 'Edit School',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => AddSchoolScreen(existingSchool: s)),
+                        ),
                       ),
-                    ),
-                  ],
+                      Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline),
+                    ],
+                  ),
                 ),
               ),
             );
