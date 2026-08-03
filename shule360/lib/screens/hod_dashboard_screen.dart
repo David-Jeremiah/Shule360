@@ -3,6 +3,7 @@ import '../models/app_user.dart';
 import 'select_class_subject_screen.dart';
 import 'syllabus_tracker_screen.dart';
 import 'mid_term_report_screen.dart';
+import 'hod_my_teachers_screen.dart';
 
 class HodDashboardScreen extends StatelessWidget {
   final AppUser user;
@@ -21,8 +22,18 @@ class HodDashboardScreen extends StatelessWidget {
           children: [
             Text('Welcome, ${user.fullName}', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 4),
-            const Text('Department overview'),
+            Text(user.departmentName != null
+                ? 'Head of ${user.departmentName}'
+                : 'Department overview'),
             const SizedBox(height: 24),
+            FilledButton.icon(
+              icon: const Icon(Icons.people),
+              label: const Text('My Department Teachers'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => HodMyTeachersScreen(currentUser: user)),
+              ),
+            ),
+            const SizedBox(height: 12),
             FilledButton.icon(
               icon: const Icon(Icons.checklist),
               label: const Text('Syllabus Coverage'),

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/app_user.dart';
+import '../permissions/role.dart';
 import 'select_class_subject_screen.dart';
 import 'enter_marks_screen.dart';
 import 'syllabus_tracker_screen.dart';
 import 'teacher_attendance_screen.dart';
+import 'select_my_class_screen.dart';
 
 class TeacherDashboardScreen extends StatelessWidget {
   final AppUser user;
@@ -79,6 +81,16 @@ class TeacherDashboardScreen extends StatelessWidget {
                 ),
               ),
             ),
+            if (user.role == UserRole.classTeacher) ...[
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                icon: const Icon(Icons.class_),
+                label: const Text('Select My Class'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => SelectMyClassScreen(currentUser: user)),
+                ),
+              ),
+            ],
           ],
         ),
       ),

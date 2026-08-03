@@ -1,4 +1,5 @@
 enum UserRole {
+  platformAdmin,
   headTeacher,
   director,
   schoolAdmin,
@@ -12,6 +13,7 @@ enum UserRole {
   student;
 
   String get storageValue => switch (this) {
+    UserRole.platformAdmin => 'platform_admin',
     UserRole.headTeacher => 'head_teacher',
     UserRole.director => 'director',
     UserRole.schoolAdmin => 'school_admin',
@@ -33,6 +35,7 @@ enum UserRole {
   }
 
   String get displayName => switch (this) {
+    UserRole.platformAdmin => 'Shule360 Admin',
     UserRole.headTeacher => 'Head Teacher',
     UserRole.director => 'Director',
     UserRole.schoolAdmin => 'School Admin',

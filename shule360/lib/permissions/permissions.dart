@@ -27,6 +27,8 @@ class Permissions {
   Permissions._();
 
   static const Map<UserRole, Set<Capability>> matrix = {
+    UserRole.platformAdmin: <Capability>{}, // platform admin bypasses per-school capability checks entirely
+    
     UserRole.headTeacher: {
       Capability.viewFinance,
       Capability.editFees,

@@ -8,15 +8,13 @@ class AppUser extends Equatable {
   final String fullName;
   final String? phoneNumber;
   final String? email;
-
-  /// For HOD/teacher: the subject IDs this account is scoped to.
   final List<String> subjectIds;
-
-  /// For class teachers: the class ID they administratively own.
   final String? ownedClassId;
-
-  /// For parents: the student IDs of their own child(ren).
   final List<String> childStudentIds;
+
+  /// For HOD accounts: which department they head, e.g. "Sports",
+  /// "Science", "Chemistry", "Physics". Null for non-HOD roles.
+  final String? departmentName;
 
   const AppUser({
     required this.id,
@@ -28,6 +26,7 @@ class AppUser extends Equatable {
     this.subjectIds = const [],
     this.ownedClassId,
     this.childStudentIds = const [],
+    this.departmentName,
   });
 
   factory AppUser.fromMap(String id, Map<String, dynamic> map) {
@@ -40,8 +39,8 @@ class AppUser extends Equatable {
       email: map['email'] as String?,
       subjectIds: List<String>.from(map['subjectIds'] as List? ?? const []),
       ownedClassId: map['ownedClassId'] as String?,
-      childStudentIds:
-      List<String>.from(map['childStudentIds'] as List? ?? const []),
+      childStudentIds: List<String>.from(map['childStudentIds'] as List? ?? const []),
+      departmentName: map['departmentName'] as String?,
     );
   }
 
@@ -54,18 +53,12 @@ class AppUser extends Equatable {
     'subjectIds': subjectIds,
     'ownedClassId': ownedClassId,
     'childStudentIds': childStudentIds,
+    'departmentName': departmentName,
   };
 
   @override
   List<Object?> get props => [
-    id,
-    schoolId,
-    role,
-    fullName,
-    phoneNumber,
-    email,
-    subjectIds,
-    ownedClassId,
-    childStudentIds,
+    id, schoolId, role, fullName, phoneNumber, email,
+    subjectIds, ownedClassId, childStudentIds, departmentName,
   ];
 }

@@ -4,120 +4,85 @@ import '../models/subject.dart';
 import '../permissions/role.dart';
 import '../services/class_service.dart';
 import '../services/user_admin_service.dart';
-import '../widgets/sign_out_button.dart';
-import 'user_list_screen.dart';
 
-class ManageUsersScreen extends StatefulWidget {
+class EditUserScreen extends StatefulWidget {
   final AppUser currentUser;
-  final String schoolSlug;
+  final AppUser targetUser;
 
-  const ManageUsersScreen({super.key, required this.currentUser, required this.schoolSlug});
+  const EditUserScreen({super.key, required this.currentUser, required this.targetUser});
 
   @override
-  State<ManageUsersScreen> createState() => _ManageUsersScreenState();
+  State<EditUserScreen> createState() => _EditUserScreenState();
 }
 
-class _ManageUsersScreenState extends State<ManageUsersScreen> {
+class _EditUserScreenState extends State<EditUserScreen> {
   final _service = UserAdminService();
   final _classService = ClassService();
-  final _nameController = TextEditingController();
-  final _emailPrefixController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _departmentController = TextEditingController(); // free-text, HOD only
-  UserRole _selectedRole = UserRole.teacher;
-  final Set<String> _selectedSubjectIds = {};
-  String? _selectedDepartment; // dropdown pick, teacher/classTeacher only
-  bool _isCreating = false;
-  bool _prefixManuallyEdited = false;
-
-  String get _domain => '${widget.schoolSlug}.shule360';
+  late final TextEditingController _nameController;
+  late final TextEditingController _departmentController;
+  late UserRole _selectedRole;
+  late Set<String> _selectedSubjectIds;
+  String? _selectedDepartment;
+  bool _isSaving = false;
 
   bool get _needsSubjects => _selectedRole == UserRole.teacher || _selectedRole == UserRole.classTeacher;
-
   bool get _isDepartmentHead => _selectedRole == UserRole.hod;
-
   bool get _canJoinDepartment => _selectedRole == UserRole.teacher || _selectedRole == UserRole.classTeacher;
 
-  String _slugify(String name) {
-    return name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  @override
+  void initState() {
+    super.initState();
+    final u = widget.targetUser;
+    _nameController = TextEditingController(text: u.fullName);
+    _departmentController = TextEditingController(text: u.role == UserRole.hod ? (u.departmentName ?? '') : '');
+    _selectedDepartment = u.role != UserRole.hod ? u.departmentName : null;
+    _selectedRole = u.role;
+    _selectedSubjectIds = {...u.subjectIds};
   }
 
-  void _onNameChanged(String value) {
-    if (!_prefixManuallyEdited) {
-      _emailPrefixController.text = _slugify(value);
-    }
-  }
-
-  Future<void> _createAccount() async {
+  Future<void> _save() async {
     final name = _nameController.text.trim();
-    final prefix = _emailPrefixController.text.trim();
-    final password = _passwordController.text;
-    if (name.isEmpty || prefix.isEmpty || password.length < 6) {
+    if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fill all fields — password needs 6+ characters')),
+        const SnackBar(content: Text('Name cannot be empty')),
       );
       return;
     }
 
-    final email = '$prefix@$_domain';
     final departmentName = _isDepartmentHead
         ? _departmentController.text.trim()
         : (_canJoinDepartment ? _selectedDepartment : null);
 
-    setState(() => _isCreating = true);
+    setState(() => _isSaving = true);
     try {
-      await _service.createStaffAccount(
-        email: email,
-        password: password,
+      await _service.updateStaffAccount(
+        userId: widget.targetUser.id,
         fullName: name,
-        schoolId: widget.currentUser.schoolId,
         role: _selectedRole,
         departmentName: departmentName,
-        subjectIds: _needsSubjects ? _selectedSubjectIds.toList() : null,
+        subjectIds: _needsSubjects ? _selectedSubjectIds.toList() : [],
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Account created: $email')),
+          const SnackBar(content: Text('User updated')),
         );
-        _nameController.clear();
-        _emailPrefixController.clear();
-        _passwordController.clear();
-        _departmentController.clear();
-        setState(() {
-          _selectedSubjectIds.clear();
-          _selectedDepartment = null;
-          _prefixManuallyEdited = false;
-        });
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not create account: $e')),
+          SnackBar(content: Text('Could not update: $e')),
         );
       }
     } finally {
-      if (mounted) setState(() => _isCreating = false);
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manage Users'),
-        actions: [
-          IconButton(
-            tooltip: 'View All Users',
-            icon: const Icon(Icons.people_alt),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => UserListScreen(currentUser: widget.currentUser),
-              ),
-            ),
-          ),
-          const SignOutButton(),
-        ],
-      ),
+      appBar: AppBar(title: Text('Edit ${widget.targetUser.fullName}')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: ConstrainedBox(
@@ -127,23 +92,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
             children: [
               TextField(
                 controller: _nameController,
-                onChanged: _onNameChanged,
                 decoration: const InputDecoration(labelText: 'Full name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _emailPrefixController,
-                onChanged: (_) => _prefixManuallyEdited = true,
-                decoration: InputDecoration(
-                  labelText: 'Email prefix (auto-filled from name, editable)',
-                  suffixText: '@$_domain',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Temporary password'),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<UserRole>(
@@ -161,10 +110,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _departmentController,
-                  decoration: const InputDecoration(
-                    labelText: 'Department this person will head',
-                    hintText: 'e.g. Sports, Science, Chemistry, Physics',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Department this person heads'),
                 ),
               ],
               if (_canJoinDepartment) ...[
@@ -173,14 +119,9 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                   stream: _service.watchDepartmentNames(widget.currentUser.schoolId),
                   builder: (context, snapshot) {
                     final departments = snapshot.data ?? [];
-                    if (departments.isEmpty) {
-                      return const Text(
-                        'No departments yet — create an HOD account first to define one.',
-                        style: TextStyle(fontStyle: FontStyle.italic),
-                      );
-                    }
+                    final currentValue = departments.contains(_selectedDepartment) ? _selectedDepartment : null;
                     return DropdownButtonFormField<String>(
-                      initialValue: _selectedDepartment,
+                      initialValue: currentValue,
                       decoration: const InputDecoration(labelText: 'Department (optional)'),
                       items: departments
                           .map((d) => DropdownMenuItem(value: d, child: Text(d)))
@@ -199,7 +140,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                   builder: (context, snapshot) {
                     final subjects = snapshot.data ?? [];
                     if (subjects.isEmpty) {
-                      return const Text('No subjects created yet — add some under Manage Classes & Subjects first.');
+                      return const Text('No subjects created yet.');
                     }
                     return Wrap(
                       spacing: 8,
@@ -224,18 +165,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
               ],
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: _isCreating ? null : _createAccount,
-                child: Text(_isCreating ? 'Creating...' : 'Create Account'),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.people_alt),
-                label: const Text('View / Edit Existing Users'),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => UserListScreen(currentUser: widget.currentUser),
-                  ),
-                ),
+                onPressed: _isSaving ? null : _save,
+                child: Text(_isSaving ? 'Saving...' : 'Save Changes'),
               ),
             ],
           ),

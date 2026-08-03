@@ -22,6 +22,21 @@ class ClassService {
         .set(subject.toMap());
   }
 
+  Future<void> assignClassTeacher({
+    required String schoolId,
+    required String classId,
+    required String teacherUserId,
+  }) async {
+    await _db.collection(_classesPath(schoolId)).doc(classId).set(
+      {'classTeacherId': teacherUserId},
+      SetOptions(merge: true),
+    );
+    await FirebaseFirestore.instance.collection('users').doc(teacherUserId).set(
+      {'ownedClassId': classId},
+      SetOptions(merge: true),
+    );
+  }
+
   Stream<List<SchoolClass>> watchClasses(String schoolId) {
     return _db
         .collection(_classesPath(schoolId))

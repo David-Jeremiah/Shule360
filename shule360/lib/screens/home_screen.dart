@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_user.dart';
 import '../permissions/permissions.dart';
 import '../permissions/role.dart';
+import '../services/school_service.dart';
 import '../widgets/role_gated_action.dart';
 import 'register_student_screen.dart';
 import 'manage_classes_screen.dart';
@@ -24,6 +25,7 @@ import 'hod_dashboard_screen.dart';
 import 'school_settings_screen.dart';
 import 'manage_users_screen.dart';
 import 'sports_screen.dart';
+import 'platform_admin_dashboard_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final AppUser user;
@@ -43,6 +45,9 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget body;
     switch (user.role) {
+      case UserRole.platformAdmin:
+        body = const PlatformAdminDashboardScreen();
+        break;
       case UserRole.parent:
         body = ParentPortalScreen(currentUser: user, term: currentTerm);
         break;
@@ -104,9 +109,19 @@ class _AdminButtonList extends StatelessWidget {
                 capability: Capability.manageUserAccounts,
                 icon: Icons.admin_panel_settings,
                 label: 'Manage Users',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => ManageUsersScreen(currentUser: user)),
-                ),
+                onTap: () async {
+                  final school = await SchoolService().fetchSchool(user.schoolId);
+                  if (context.mounted) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ManageUsersScreen(
+                          currentUser: user,
+                          schoolSlug: school.slug,
+                        ),
+                      ),
+                    );
+                  }
+                },
               ),
               RoleGatedAction(
                 role: user.role,

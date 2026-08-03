@@ -1,19 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import '../models/app_user.dart';
 import '../permissions/role.dart';
 
-/// Creates a new staff account WITHOUT signing out the currently logged-in
-/// admin. Uses a temporary secondary Firebase app instance — a standard
-/// client-side workaround, since Firebase Auth's normal
-/// createUserWithEmailAndPassword call switches the CURRENT session to the
-/// new user otherwise.
-///
-/// IMPORTANT: this is a stopgap for testing. Because it runs entirely on
-/// the client, anyone who can open this screen can create accounts with
-/// any role. Before going live, move this logic into a Cloud Function
-/// (using the Admin SDK) that checks the caller's role server-side before
-/// creating the account.
 class UserAdminService {
   Future<String> createStaffAccount({
     required String email,
@@ -21,6 +11,8 @@ class UserAdminService {
     required String fullName,
     required String schoolId,
     required UserRole role,
+    String? departmentName,
+    List<String>? subjectIds,
   }) async {
     final tempApp = await Firebase.initializeApp(
       name: 'tempAdminApp-${DateTime.now().millisecondsSinceEpoch}',
@@ -38,6 +30,8 @@ class UserAdminService {
         'schoolId': schoolId,
         'role': role.storageValue,
         'fullName': fullName,
+        if (departmentName != null && departmentName.isNotEmpty) 'departmentName': departmentName,
+        if (subjectIds != null && subjectIds.isNotEmpty) 'subjectIds': subjectIds,
       });
 
       await tempAuth.signOut();
@@ -45,5 +39,87 @@ class UserAdminService {
     } finally {
       await tempApp.delete();
     }
+  }
+
+  /// All staff/users belonging to a school, sorted by name.
+  Stream<List<AppUser>> watchUsers(String schoolId) {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .where('schoolId', isEqualTo: schoolId)
+        .snapshots()
+        .map((snap) {
+      final users = snap.docs.map((d) => AppUser.fromMap(d.id, d.data())).toList();
+      users.sort((a, b) => a.fullName.compareTo(b.fullName));
+      return users;
+    });
+  }
+
+  /// Distinct department names, sourced from existing HOD accounts.
+  /// Used so teachers/class teachers can be assigned into a department
+  /// that already has a head, instead of typing a fresh one.
+  Stream<List<String>> watchDepartmentNames(String schoolId) {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .where('schoolId', isEqualTo: schoolId)
+        .where('role', isEqualTo: UserRole.hod.storageValue)
+        .snapshots()
+        .map((snap) {
+      final names = snap.docs
+          .map((d) => d.data()['departmentName'] as String?)
+          .whereType<String>()
+          .where((s) => s.isNotEmpty)
+          .toSet()
+          .toList();
+      names.sort();
+      return names;
+    });
+  }
+
+  /// Teachers/class teachers who belong to a given department name.
+  Stream<List<AppUser>> watchDepartmentTeachers({
+    required String schoolId,
+    required String departmentName,
+  }) {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .where('schoolId', isEqualTo: schoolId)
+        .where('departmentName', isEqualTo: departmentName)
+        .snapshots()
+        .map((snap) {
+      final users = snap.docs
+          .map((d) => AppUser.fromMap(d.id, d.data()))
+          .where((u) => u.role == UserRole.teacher || u.role == UserRole.classTeacher)
+          .toList();
+      users.sort((a, b) => a.fullName.compareTo(b.fullName));
+      return users;
+    });
+  }
+
+  /// Full profile edit (name, role, department, subjects). Does NOT touch
+  /// email/password — that stays in Firebase Auth and isn't editable here.
+  Future<void> updateStaffAccount({
+    required String userId,
+    required String fullName,
+    required UserRole role,
+    String? departmentName,
+    List<String>? subjectIds,
+  }) async {
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'fullName': fullName,
+      'role': role.storageValue,
+      'departmentName': departmentName,
+      'subjectIds': subjectIds ?? [],
+    });
+  }
+
+  /// Lightweight update for HODs assigning subjects to their own
+  /// department's teachers — doesn't touch role/department/name.
+  Future<void> updateTeacherSubjects({
+    required String userId,
+    required List<String> subjectIds,
+  }) async {
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'subjectIds': subjectIds,
+    });
   }
 }
