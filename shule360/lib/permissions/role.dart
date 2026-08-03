@@ -1,8 +1,9 @@
 enum UserRole {
   headTeacher,
   director,
-  dos, // Director of Studies
-  hod, // Head of Department
+  schoolAdmin,
+  dos,
+  hod,
   classTeacher,
   teacher,
   bursar,
@@ -13,6 +14,7 @@ enum UserRole {
   String get storageValue => switch (this) {
     UserRole.headTeacher => 'head_teacher',
     UserRole.director => 'director',
+    UserRole.schoolAdmin => 'school_admin',
     UserRole.dos => 'dos',
     UserRole.hod => 'hod',
     UserRole.classTeacher => 'class_teacher',
@@ -33,6 +35,7 @@ enum UserRole {
   String get displayName => switch (this) {
     UserRole.headTeacher => 'Head Teacher',
     UserRole.director => 'Director',
+    UserRole.schoolAdmin => 'School Admin',
     UserRole.dos => 'Director of Studies',
     UserRole.hod => 'Head of Department',
     UserRole.classTeacher => 'Class Teacher',

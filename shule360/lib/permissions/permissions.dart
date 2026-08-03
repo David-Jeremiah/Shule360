@@ -18,6 +18,9 @@ enum Capability {
   viewOwnChildRecords,
   manageTimetable,
   manageAnnouncements,
+  manageSchoolBranding,
+  manageUserAccounts,
+  manageSports,
 }
 
 class Permissions {
@@ -35,6 +38,9 @@ class Permissions {
       Capability.viewAllAcademics,
       Capability.manageTimetable,
       Capability.manageAnnouncements,
+      Capability.manageSchoolBranding,
+      Capability.manageUserAccounts,
+      Capability.manageSports,
     },
     UserRole.director: {
       Capability.viewFinance,
@@ -47,6 +53,13 @@ class Permissions {
       Capability.viewAllAcademics,
       Capability.manageTimetable,
       Capability.manageAnnouncements,
+      Capability.manageSchoolBranding,
+      Capability.manageUserAccounts,
+      Capability.manageSports,
+    },
+    UserRole.schoolAdmin: {
+      Capability.manageSchoolBranding,
+      Capability.manageUserAccounts,
     },
     UserRole.dos: {
       Capability.viewAllAcademics,

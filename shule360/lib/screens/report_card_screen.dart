@@ -3,6 +3,7 @@ import '../models/app_user.dart';
 import '../models/mark_record.dart';
 import '../models/student.dart';
 import '../services/marks_service.dart';
+import '../services/report_card_pdf_service.dart';
 import '../services/student_service.dart';
 
 class ReportCardScreen extends StatelessWidget {
@@ -21,6 +22,7 @@ class ReportCardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final studentService = StudentService();
     final marksService = MarksService();
+    final pdfService = ReportCardPdfService();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Report Cards')),
@@ -58,7 +60,8 @@ class ReportCardScreen extends StatelessWidget {
                             child: Text('No marks entered yet.'),
                           );
                         }
-                        final average = marks.map((m) => m.percentage).reduce((a, b) => a + b) / marks.length;
+                        final average =
+                            marks.map((m) => m.percentage).reduce((a, b) => a + b) / marks.length;
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           child: Column(
@@ -77,6 +80,17 @@ class ReportCardScreen extends StatelessWidget {
                               const Divider(),
                               Text('Average: ${average.toStringAsFixed(1)}%',
                                   style: const TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 12),
+                              FilledButton.icon(
+                                icon: const Icon(Icons.print),
+                                label: const Text('Print Report Card'),
+                                onPressed: () => pdfService.printReportCard(
+                                  student: student,
+                                  marks: marks,
+                                  schoolName: 'Shule360 Test School', // TODO: pull from School model once school profile UI exists
+                                  term: term,
+                                ),
+                              ),
                             ],
                           ),
                         );

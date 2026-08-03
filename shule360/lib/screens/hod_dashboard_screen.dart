@@ -1,0 +1,79 @@
+import 'package:flutter/material.dart';
+import '../models/app_user.dart';
+import 'select_class_subject_screen.dart';
+import 'syllabus_tracker_screen.dart';
+import 'mid_term_report_screen.dart';
+
+class HodDashboardScreen extends StatelessWidget {
+  final AppUser user;
+  final String term;
+
+  const HodDashboardScreen({super.key, required this.user, required this.term});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Welcome, ${user.fullName}', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 4),
+            const Text('Department overview'),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              icon: const Icon(Icons.checklist),
+              label: const Text('Syllabus Coverage'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SelectClassSubjectScreen(
+                    currentUser: user,
+                    title: 'Select Class & Subject',
+                    onSelected: (classId, subjectId) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SyllabusTrackerScreen(
+                            currentUser: user,
+                            classId: classId,
+                            subjectId: subjectId,
+                            term: term,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              icon: const Icon(Icons.analytics),
+              label: const Text('Department Pass/Fail Report'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SelectClassSubjectScreen(
+                    currentUser: user,
+                    title: 'Select Class',
+                    onSelected: (classId, _) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MidTermReportScreen(
+                            currentUser: user,
+                            classId: classId,
+                            term: term,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
