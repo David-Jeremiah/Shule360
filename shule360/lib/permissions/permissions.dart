@@ -13,6 +13,8 @@ enum Capability {
   viewAllAcademics,
   viewOwnDepartmentAcademics,
   editSyllabusCoverage,
+  approveSyllabusCoverage,
+  setSyllabusTargets,
   triggerMidTermReport,
   checkInAttendance,
   viewOwnChildRecords,
@@ -70,7 +72,13 @@ class Permissions {
     },
     UserRole.hod: {
       Capability.viewOwnDepartmentAcademics,
+      // HOD is also a teacher — full teaching capabilities:
+      Capability.enterMarks,
+      Capability.checkInAttendance,
       Capability.editSyllabusCoverage,
+      // Plus HOD-only oversight:
+      Capability.approveSyllabusCoverage,
+      Capability.setSyllabusTargets,
     },
     UserRole.classTeacher: {
       Capability.manageOwnClassStudents,

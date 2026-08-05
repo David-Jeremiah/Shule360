@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/school.dart';
 import '../services/platform_admin_service.dart';
 import 'add_school_screen.dart';
@@ -16,6 +17,11 @@ class _PlatformAdminDashboardScreenState extends State<PlatformAdminDashboardScr
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
+  static const _bg = Color(0xFFF7F8FC);
+  static const _surface = Colors.white;
+  static const _accent = Color(0xFF3B5BDB);
+  static const _textSecondary = Color(0xFF6B7280);
+
   @override
   void initState() {
     super.initState();
@@ -28,57 +34,105 @@ class _PlatformAdminDashboardScreenState extends State<PlatformAdminDashboardScr
     super.dispose();
   }
 
+  Future<void> _signOut() => FirebaseAuth.instance.signOut();
+
   @override
   Widget build(BuildContext context) {
     final service = PlatformAdminService();
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-          child: StreamBuilder<List<School>>(
-            stream: service.watchAllSchools(),
-            builder: (context, snapshot) {
-              final schools = snapshot.data ?? [];
-              final active = schools.where((s) => s.isWithinGracePeriod).length;
-              final lapsed = schools.length - active;
-              return Row(
-                children: [
-                  _StatCard(
-                    icon: Icons.school,
-                    label: 'Total Schools',
-                    value: '${schools.length}',
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 16),
-                  _StatCard(icon: Icons.check_circle, label: 'Active', value: '$active', color: Colors.green),
-                  const SizedBox(width: 16),
-                  _StatCard(icon: Icons.warning, label: 'Lapsed', value: '$lapsed', color: Colors.orange),
-                ],
-              );
-            },
-          ),
+    return Theme(
+      data: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: _bg,
+        colorScheme: ColorScheme.light(
+          primary: _accent,
+          surface: _surface,
+          onSurface: Colors.black87,
+          outline: const Color(0xFFE2E4EC),
         ),
-        const SizedBox(height: 16),
-        TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Schools', icon: Icon(Icons.list)),
-            Tab(text: 'Add School', icon: Icon(Icons.add_business)),
-            Tab(text: 'Platform Team', icon: Icon(Icons.shield)),
+        cardColor: _surface,
+        tabBarTheme: TabBarThemeData(
+          labelColor: _accent,
+          unselectedLabelColor: _textSecondary,
+          indicatorColor: _accent,
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: _bg,
+        appBar: AppBar(
+          backgroundColor: _surface,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+          scrolledUnderElevation: 1,
+          title: const Text('Platform Admin'),
+          actions: [
+            IconButton(
+              tooltip: 'Sign Out',
+              icon: const Icon(Icons.logout),
+              onPressed: _signOut,
+            ),
+            const SizedBox(width: 8),
           ],
         ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _SchoolsListTab(service: service),
-              const AddSchoolScreen(),
-              const PlatformTeamScreen(),
-            ],
-          ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              child: StreamBuilder<List<School>>(
+                stream: service.watchAllSchools(),
+                builder: (context, snapshot) {
+                  final schools = snapshot.data ?? [];
+                  final active = schools.where((s) => s.isWithinGracePeriod).length;
+                  final lapsed = schools.length - active;
+                  return Row(
+                    children: [
+                      _StatCard(
+                        icon: Icons.school,
+                        label: 'Total Schools',
+                        value: '${schools.length}',
+                        color: _accent,
+                      ),
+                      const SizedBox(width: 16),
+                      _StatCard(
+                        icon: Icons.check_circle,
+                        label: 'Active',
+                        value: '$active',
+                        color: const Color(0xFF2FA84F),
+                      ),
+                      const SizedBox(width: 16),
+                      _StatCard(
+                        icon: Icons.warning,
+                        label: 'Lapsed',
+                        value: '$lapsed',
+                        color: const Color(0xFFE0A83C),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: 'Schools', icon: Icon(Icons.list)),
+                Tab(text: 'Add School', icon: Icon(Icons.add_business)),
+                Tab(text: 'Platform Team', icon: Icon(Icons.shield)),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _SchoolsListTab(service: service),
+                  const AddSchoolScreen(),
+                  const PlatformTeamScreen(),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

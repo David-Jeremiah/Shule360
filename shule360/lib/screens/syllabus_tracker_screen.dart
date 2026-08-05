@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/app_user.dart';
+import '../models/syllabus_target.dart';
 import '../models/syllabus_topic.dart';
 import '../services/syllabus_service.dart';
+import '../widgets/sign_out_button.dart';
 
 class SyllabusTrackerScreen extends StatefulWidget {
   final AppUser currentUser;
@@ -44,12 +46,45 @@ class _SyllabusTrackerScreenState extends State<SyllabusTrackerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Syllabus Coverage')),
+      appBar: AppBar(title: const Text('Syllabus Coverage'), actions: const [SignOutButton()]),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            StreamBuilder<SyllabusTarget?>(
+              stream: _service.watchTarget(
+                schoolId: widget.currentUser.schoolId,
+                subjectId: widget.subjectId,
+                classId: widget.classId,
+                term: widget.term,
+              ),
+              builder: (context, snapshot) {
+                final target = snapshot.data;
+                if (target == null) {
+                  return const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text('No target set yet by your HOD.'),
+                    ),
+                  );
+                }
+                return Card(
+                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.flag),
+                        const SizedBox(width: 10),
+                        Text('Target: cover in ${target.targetWeeks} weeks • Pass mark: ${target.passMarkTarget}%'),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -74,25 +109,41 @@ class _SyllabusTrackerScreenState extends State<SyllabusTrackerScreen> {
                 builder: (context, snapshot) {
                   final topics = snapshot.data ?? [];
                   if (topics.isEmpty) return const Text('No topics added yet.');
-                  final coveredCount = topics.where((t) => t.isCovered).length;
+                  final approvedCount = topics.where((t) => t.hodApproved).length;
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      LinearProgressIndicator(value: topics.isEmpty ? 0 : coveredCount / topics.length),
+                      LinearProgressIndicator(value: topics.isEmpty ? 0 : approvedCount / topics.length),
                       const SizedBox(height: 4),
-                      Text('$coveredCount / ${topics.length} topics covered'),
+                      Text('$approvedCount / ${topics.length} topics approved by HOD'),
                       const SizedBox(height: 12),
                       Expanded(
                         child: ListView.builder(
                           itemCount: topics.length,
                           itemBuilder: (context, index) {
                             final topic = topics[index];
-                            return CheckboxListTile(
+                            return ListTile(
                               title: Text(topic.title),
-                              value: topic.isCovered,
-                              onChanged: topic.isCovered
+                              leading: Icon(
+                                topic.hodApproved
+                                    ? Icons.verified
+                                    : (topic.isCovered ? Icons.hourglass_top : Icons.circle_outlined),
+                                color: topic.hodApproved
+                                    ? Colors.green
+                                    : (topic.isCovered ? Colors.orange : null),
+                              ),
+                              subtitle: Text(
+                                topic.hodApproved
+                                    ? 'Approved by HOD'
+                                    : (topic.isCovered ? 'Marked covered — awaiting HOD approval' : 'Not yet covered'),
+                              ),
+                              trailing: topic.isCovered
                                   ? null
-                                  : (_) => _service.markCovered(topic),
+                                  : TextButton(
+                                onPressed: () =>
+                                    _service.markCovered(topic, widget.currentUser.id),
+                                child: const Text('Mark Covered'),
+                              ),
                             );
                           },
                         ),

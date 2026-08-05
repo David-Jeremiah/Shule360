@@ -11,12 +11,14 @@ class SelectClassSubjectScreen extends StatefulWidget {
   final AppUser currentUser;
   final void Function(String classId, String subjectId) onSelected;
   final String title;
+  final String? departmentFilter;
 
   const SelectClassSubjectScreen({
     super.key,
     required this.currentUser,
     required this.onSelected,
     this.title = 'Select Class & Subject',
+    this.departmentFilter,
   });
 
   @override
@@ -44,7 +46,11 @@ class _SelectClassSubjectScreenState extends State<SelectClassSubjectScreen> {
               StreamBuilder<List<SchoolClass>>(
                 stream: _classService.watchClasses(widget.currentUser.schoolId),
                 builder: (context, snapshot) {
-                  final classes = snapshot.data ?? [];
+                  var classes = snapshot.data ?? [];
+                  // TODO: once confirmed, filter classes by widget.departmentFilter
+                  // e.g. if (widget.departmentFilter != null) {
+                  //   classes = classes.where((c) => c.departmentName == widget.departmentFilter).toList();
+                  // }
                   if (classes.isEmpty) {
                     return const Text('No classes yet — create one first.');
                   }

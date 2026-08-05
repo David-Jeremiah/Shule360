@@ -116,12 +116,18 @@ class _AssignSubjectsScreenState extends State<_AssignSubjectsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // NOTE: filtered to the HOD's own department, since a teacher
+              // in this department shouldn't be assignable to subjects
+              // owned by a different department.
               StreamBuilder<List<Subject>>(
-                stream: _classService.watchSubjects(widget.currentUser.schoolId),
+                stream: _classService.watchDepartmentSubjects(
+                  schoolId: widget.currentUser.schoolId,
+                  departmentName: widget.currentUser.departmentName!,
+                ),
                 builder: (context, snapshot) {
                   final subjects = snapshot.data ?? [];
                   if (subjects.isEmpty) {
-                    return const Text('No subjects created yet.');
+                    return const Text('No subjects assigned to your department yet — ask your admin to assign some.');
                   }
                   return Wrap(
                     spacing: 8,

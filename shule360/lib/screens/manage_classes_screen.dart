@@ -8,6 +8,7 @@ import '../models/subject.dart';
 import '../services/class_service.dart';
 import '../services/school_service.dart';
 import '../widgets/sign_out_button.dart';
+import 'subject_departments_screen.dart';
 
 class ManageClassesScreen extends StatefulWidget {
   final AppUser currentUser;
@@ -28,18 +29,6 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
   bool _useStreams = false;
   final List<String> _streamNames = [];
   bool _isGenerating = false;
-
-  Future<void> _addClass() async {
-    final name = _classNameController.text.trim();
-    if (name.isEmpty) return;
-    setState(() => _isSavingClass = true);
-    try {
-      final id = _classService.hashCode.toString(); // placeholder, replaced below
-    } finally {
-      // no-op, real add happens via generateClasses / manual add below
-      if (mounted) setState(() => _isSavingClass = false);
-    }
-  }
 
   Future<void> _addClassManual() async {
     final name = _classNameController.text.trim();
@@ -139,7 +128,6 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
             Text('Classes', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
 
-            // Manual single-class add
             Row(
               children: [
                 Expanded(
@@ -270,6 +258,16 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
           children: [
             Text('Subjects', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.account_tree),
+              label: const Text('Assign Subjects to Departments'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SubjectDepartmentsScreen(currentUser: widget.currentUser),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -332,6 +330,7 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.book),
                     title: Text(s.name),
+                    subtitle: s.departmentName != null ? Text(s.departmentName!) : null,
                   ))
                       .toList(),
                 );
