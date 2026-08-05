@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/app_user.dart';
-import 'home_screen.dart';
 
+/// Sign-in only — no manual navigation on success. Shule360Root (in
+/// main.dart) listens to FirebaseAuth's authStateChanges stream and swaps
+/// to HomeScreen automatically once sign-in succeeds, so this screen just
+/// needs to call signIn and handle errors.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -23,27 +24,24 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
     try {
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      final uid = credential.user!.uid;
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (!doc.exists) {
-        throw StateError('No user profile found for this account.');
-      }
-      debugPrint('FIRESTORE DOC DATA: ${doc.data()}');
-      final appUser = AppUser.fromMap(doc.id, doc.data()!);
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => HomeScreen(user: appUser)),
-      );
+      // No manual navigation needed — Shule360Root's authStateChanges
+      // stream picks this up automatically and swaps to HomeScreen.
     } catch (e) {
-      debugPrint('LOGIN ERROR: $e');
       setState(() => _errorMessage = 'Could not sign in. Check your details and try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
