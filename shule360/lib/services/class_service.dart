@@ -12,8 +12,33 @@ class ClassService {
     await _db.collection(_classesPath(schoolClass.schoolId)).doc(schoolClass.id).set(schoolClass.toMap());
   }
 
-  Future<void> createSubject(Subject subject) async {
+  /// Creates a subject only if one with the same (case-insensitive) name
+  /// doesn't already exist for this school — prevents duplicate entries
+  /// from repeated taps on quick-add chips.
+  Future<void> createSubjectIfNotExists(Subject subject) async {
+    final existing = await _db
+        .collection(_subjectsPath(subject.schoolId))
+        .where('name', isEqualTo: subject.name)
+        .limit(1)
+        .get();
+    if (existing.docs.isNotEmpty) return;
     await _db.collection(_subjectsPath(subject.schoolId)).doc(subject.id).set(subject.toMap());
+  }
+
+  Future<void> updateSubjectDepartment({
+    required String schoolId,
+    required String subjectId,
+    required String? departmentName,
+  }) async {
+    await _db.collection(_subjectsPath(schoolId)).doc(subjectId).set(
+      {'departmentName': departmentName},
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<SchoolClass?> fetchClass(String schoolId, String classId) async {
+    final doc = await _db.collection(_classesPath(schoolId)).doc(classId).get();
+    return doc.exists ? SchoolClass.fromMap(doc.id, doc.data()!) : null;
   }
 
   Stream<List<SchoolClass>> watchClasses(String schoolId) {
@@ -30,33 +55,17 @@ class ClassService {
         .map((snap) => snap.docs.map((d) => Subject.fromMap(d.id, d.data())).toList());
   }
 
-  /// Subjects belonging to one department only — used to scope what an
-  /// HOD sees (assigning teachers, syllabus coverage, targets). Filters
-  /// client-side rather than a Firestore where-clause so callers with no
-  /// department set (departmentName null) don't need a composite index.
+  /// Subjects scoped to one department — this is what makes an HOD only
+  /// see their own department's subjects everywhere (marks, syllabus).
   Stream<List<Subject>> watchDepartmentSubjects({
     required String schoolId,
     required String departmentName,
   }) {
-    return watchSubjects(schoolId).map(
-          (subjects) => subjects.where((s) => s.departmentName == departmentName).toList(),
-    );
-  }
-
-  /// Sets or clears which department owns a subject. Pass null/empty to
-  /// unassign it back to "no department".
-  Future<void> updateSubjectDepartment({
-    required String schoolId,
-    required String subjectId,
-    required String? departmentName,
-  }) async {
-    await _db.collection(_subjectsPath(schoolId)).doc(subjectId).set(
-      {
-        'departmentName':
-        (departmentName != null && departmentName.isNotEmpty) ? departmentName : FieldValue.delete(),
-      },
-      SetOptions(merge: true),
-    );
+    return _db
+        .collection(_subjectsPath(schoolId))
+        .where('departmentName', isEqualTo: departmentName)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => Subject.fromMap(d.id, d.data())).toList());
   }
 
   Future<void> assignClassTeacher({
@@ -74,23 +83,6 @@ class ClassService {
     );
   }
 
-  /// Assigns a subject teacher for a specific class — used by the
-  /// timetable module. Distinct from assignClassTeacher (the homeroom
-  /// teacher); a class can have many subject teachers but one class teacher.
-  Future<void> assignSubjectTeacher({
-    required String schoolId,
-    required String classId,
-    required String subjectId,
-    required String teacherUserId,
-  }) async {
-    await _db.collection(_classesPath(schoolId)).doc(classId).set(
-      {
-        'subjectTeacherIds.$subjectId': teacherUserId,
-      },
-      SetOptions(merge: true),
-    );
-  }
-
   Future<int> generateClasses({
     required String schoolId,
     required List<String> levelLabels,
@@ -101,21 +93,14 @@ class ClassService {
 
     for (final level in levelLabels) {
       if (streamNames.isEmpty) {
-        final id = _db.collection(_classesPath(schoolId)).doc().id;
-        final ref = _db.collection(_classesPath(schoolId)).doc(id);
-        batch.set(ref, SchoolClass(
-          id: id,
-          schoolId: schoolId,
-          name: level,
-          levelLabel: level,
-        ).toMap());
+        final ref = _db.collection(_classesPath(schoolId)).doc();
+        batch.set(ref, SchoolClass(id: ref.id, schoolId: schoolId, name: level, levelLabel: level).toMap());
         count++;
       } else {
         for (final stream in streamNames) {
-          final id = _db.collection(_classesPath(schoolId)).doc().id;
-          final ref = _db.collection(_classesPath(schoolId)).doc(id);
+          final ref = _db.collection(_classesPath(schoolId)).doc();
           batch.set(ref, SchoolClass(
-            id: id,
+            id: ref.id,
             schoolId: schoolId,
             name: '$level $stream',
             levelLabel: level,

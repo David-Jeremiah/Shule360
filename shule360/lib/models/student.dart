@@ -7,6 +7,7 @@ class Student extends Equatable {
   final String schoolId;
   final String fullName;
   final String admissionNumber;
+  final String rollNumber;
   final EducationLevel level;
   final String classId;
   final String? streamId;
@@ -19,6 +20,7 @@ class Student extends Equatable {
     required this.schoolId,
     required this.fullName,
     required this.admissionNumber,
+    required this.rollNumber,
     required this.level,
     required this.classId,
     this.streamId,
@@ -33,6 +35,9 @@ class Student extends Equatable {
       schoolId: map['schoolId'] as String,
       fullName: map['fullName'] as String,
       admissionNumber: map['admissionNumber'] as String,
+      // Older records created before roll numbers existed won't have this —
+      // fall back to empty rather than throwing.
+      rollNumber: map['rollNumber'] as String? ?? '',
       level: EducationLevel.values.firstWhere(
             (l) => l.name == map['level'],
         orElse: () => EducationLevel.primary,
@@ -49,6 +54,7 @@ class Student extends Equatable {
     'schoolId': schoolId,
     'fullName': fullName,
     'admissionNumber': admissionNumber,
+    'rollNumber': rollNumber,
     'level': level.name,
     'classId': classId,
     'streamId': streamId,
@@ -59,7 +65,7 @@ class Student extends Equatable {
 
   @override
   List<Object?> get props => [
-    id, schoolId, fullName, admissionNumber, level, classId, streamId,
+    id, schoolId, fullName, admissionNumber, rollNumber, level, classId, streamId,
     guardianPhoneNumber, enrolledOn, isActive,
   ];
 }

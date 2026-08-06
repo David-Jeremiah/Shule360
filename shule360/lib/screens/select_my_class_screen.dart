@@ -2,61 +2,76 @@ import 'package:flutter/material.dart';
 import '../models/app_user.dart';
 import '../models/school_class.dart';
 import '../services/class_service.dart';
-import '../widgets/sign_out_button.dart';
 
-class SelectMyClassScreen extends StatelessWidget {
+/// Same idea as SelectClassSubjectScreen but for flows that only ever
+/// need a class — Report Cards and Mid-Term Report, neither of which
+/// takes a subjectId. Kept separate rather than reusing
+/// SelectClassSubjectScreen so the Continue button can never be gated on
+/// a subject pick that the caller doesn't want.
+class SelectClassScreen extends StatefulWidget {
   final AppUser currentUser;
+  final void Function(String classId) onSelected;
+  final String title;
 
-  const SelectMyClassScreen({super.key, required this.currentUser});
+  const SelectClassScreen({
+    super.key,
+    required this.currentUser,
+    required this.onSelected,
+    this.title = 'Select Class',
+  });
+
+  @override
+  State<SelectClassScreen> createState() => _SelectClassScreenState();
+}
+
+class _SelectClassScreenState extends State<SelectClassScreen> {
+  final _classService = ClassService();
+  SchoolClass? _selectedClass;
 
   @override
   Widget build(BuildContext context) {
-    final service = ClassService();
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Select My Class'), actions: const [SignOutButton()]),
-      body: StreamBuilder<List<SchoolClass>>(
-        stream: service.watchClasses(currentUser.schoolId),
-        builder: (context, snapshot) {
-          final classes = snapshot.data ?? [];
-          if (classes.isEmpty) {
-            return const Center(child: Text('No classes created yet — ask your admin to add one.'));
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: classes.length,
-            itemBuilder: (context, index) {
-              final c = classes[index];
-              final isMine = c.classTeacherId == currentUser.id;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: Icon(isMine ? Icons.check_circle : Icons.class_,
-                      color: isMine ? Colors.green : null),
-                  title: Text(c.name),
-                  subtitle: Text(isMine ? 'This is your class' : ''),
-                  trailing: isMine
-                      ? null
-                      : FilledButton(
-                    onPressed: () async {
-                      await service.assignClassTeacher(
-                        schoolId: currentUser.schoolId,
-                        classId: c.id,
-                        teacherUserId: currentUser.id,
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('You are now class teacher for ${c.name}')),
-                        );
-                      }
-                    },
-                    child: const Text('Select'),
-                  ),
-                ),
-              );
-            },
-          );
-        },
+      appBar: AppBar(title: Text(widget.title)),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Class', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              StreamBuilder<List<SchoolClass>>(
+                stream: _classService.watchClasses(widget.currentUser.schoolId),
+                builder: (context, snapshot) {
+                  final classes = snapshot.data ?? [];
+                  if (classes.isEmpty) {
+                    return const Text('No classes yet — create one first.');
+                  }
+                  return DropdownButton<SchoolClass>(
+                    isExpanded: true,
+                    value: classes.contains(_selectedClass) ? _selectedClass : null,
+                    hint: const Text('Choose a class'),
+                    items: classes
+                        .map((c) => DropdownMenuItem(value: c, child: Text(c.name)))
+                        .toList(),
+                    onChanged: (c) => setState(() => _selectedClass = c),
+                  );
+                },
+              ),
+              const SizedBox(height: 32),
+              FilledButton(
+                onPressed: _selectedClass != null
+                    ? () {
+                  Navigator.of(context).pop();
+                  widget.onSelected(_selectedClass!.id);
+                }
+                    : null,
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

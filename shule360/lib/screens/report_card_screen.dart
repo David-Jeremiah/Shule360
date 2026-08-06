@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/app_user.dart';
-import '../models/mark_record.dart';
 import '../models/student.dart';
-import '../services/marks_service.dart';
-import '../services/report_card_pdf_service.dart';
 import '../services/student_service.dart';
+import '../widgets/school_shell.dart';
+import 'report_card_editor_screen.dart';
 
+/// Entry point is class-only, same as before — this never asks for a
+/// subject. Subjects are chosen per student inside the editor, since a
+/// report card covers every subject a student takes, not one at a time.
 class ReportCardScreen extends StatelessWidget {
   final AppUser currentUser;
   final String classId;
@@ -21,85 +23,50 @@ class ReportCardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final studentService = StudentService();
-    final marksService = MarksService();
-    final pdfService = ReportCardPdfService();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Report Cards')),
+    return SchoolScaffold(
+      currentUser: currentUser,
+      pageTitle: 'Report Cards',
+      term: term,
       body: StreamBuilder<List<Student>>(
-        stream: studentService.watchStudentsForClass(
-          schoolId: currentUser.schoolId,
-          classId: classId,
-        ),
-        builder: (context, studentSnapshot) {
-          final students = studentSnapshot.data ?? [];
-          if (students.isEmpty) {
-            return const Center(child: Text('No students in this class yet.'));
+        stream: studentService.watchStudentsForClass(schoolId: currentUser.schoolId, classId: classId),
+        builder: (context, snapshot) {
+          final students = snapshot.data ?? [];
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.all(40),
+              child: Center(child: CircularProgressIndicator()),
+            );
           }
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: students.length,
-            itemBuilder: (context, index) {
-              final student = students[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ExpansionTile(
-                  title: Text('${student.fullName} (${student.admissionNumber})'),
-                  children: [
-                    StreamBuilder<List<MarkRecord>>(
-                      stream: marksService.watchMarksForStudent(
-                        schoolId: currentUser.schoolId,
-                        studentId: student.id,
-                        term: term,
-                      ),
-                      builder: (context, marksSnapshot) {
-                        final marks = marksSnapshot.data ?? [];
-                        if (marks.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: Text('No marks entered yet.'),
-                          );
-                        }
-                        final average =
-                            marks.map((m) => m.percentage).reduce((a, b) => a + b) / marks.length;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ...marks.map((m) => Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text('Subject: ${m.subjectId}'),
-                                    Text('${m.score}/${m.maxScore} (${m.percentage.toStringAsFixed(1)}%)'),
-                                  ],
-                                ),
-                              )),
-                              const Divider(),
-                              Text('Average: ${average.toStringAsFixed(1)}%',
-                                  style: const TextStyle(fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 12),
-                              FilledButton.icon(
-                                icon: const Icon(Icons.print),
-                                label: const Text('Print Report Card'),
-                                onPressed: () => pdfService.printReportCard(
-                                  student: student,
-                                  marks: marks,
-                                  schoolName: 'Shule360 Test School', // TODO: pull from School model once school profile UI exists
-                                  term: term,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+          if (students.isEmpty) {
+            return const Text(
+              'No students in this class yet.',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            );
+          }
+          final sorted = [...students]..sort((a, b) => a.rollNumber.compareTo(b.rollNumber));
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: sorted
+                .map((student) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                title: Text(student.fullName),
+                subtitle: Text('Admission: ${student.admissionNumber} · Roll: ${student.rollNumber}'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ReportCardEditorScreen(
+                      currentUser: currentUser,
+                      student: student,
+                      classId: classId,
+                      term: term,
                     ),
-                  ],
+                  ),
                 ),
-              );
-            },
+              ),
+            ))
+                .toList(),
           );
         },
       ),

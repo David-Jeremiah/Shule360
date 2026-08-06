@@ -33,6 +33,30 @@ class SchoolService {
     await _db.collection('schools').doc(school.id).set(school.toMap(), SetOptions(merge: true));
   }
 
+  /// Updates individual school info fields without needing a full School object.
+  Future<void> updateSchoolInfo({
+    required String schoolId,
+    String? name,
+    String? motto,
+    String? vision,
+    String? mission,
+    String? address,
+    String? email,
+    String? website,
+    List<String>? phoneNumbers,
+  }) async {
+    await _db.collection('schools').doc(schoolId).set({
+      if (name != null) 'name': name,
+      if (motto != null) 'motto': motto,
+      if (vision != null) 'vision': vision,
+      if (mission != null) 'mission': mission,
+      if (address != null) 'address': address,
+      if (email != null) 'email': email,
+      if (website != null) 'website': website,
+      if (phoneNumbers != null) 'phoneNumbers': phoneNumbers,
+    }, SetOptions(merge: true));
+  }
+
   /// Uploads a logo image to Firebase Storage and returns its download URL.
   /// Stores it at logos/{schoolId}.<ext>, overwriting any previous logo.
   Future<String> uploadLogo({

@@ -37,6 +37,7 @@ class Permissions {
       Capability.viewProcurement,
       Capability.editProcurement,
       Capability.manageStaff,
+      Capability.manageOwnClassStudents,
       Capability.viewAllAcademics,
       Capability.manageTimetable,
       Capability.manageAnnouncements,
@@ -52,6 +53,7 @@ class Permissions {
       Capability.viewProcurement,
       Capability.editProcurement,
       Capability.manageStaff,
+      Capability.manageOwnClassStudents,
       Capability.viewAllAcademics,
       Capability.manageTimetable,
       Capability.manageAnnouncements,
@@ -59,24 +61,43 @@ class Permissions {
       Capability.manageUserAccounts,
       Capability.manageSports,
     },
+    // School admin sees/manages everything in the school — same
+    // operational reach as headTeacher/director. The one restriction
+    // (can't create another schoolAdmin account) is enforced in
+    // ManageUsersScreen's role picker, not here, since Permissions only
+    // gates capabilities, not which roles a capability can target.
     UserRole.schoolAdmin: {
+      Capability.viewFinance,
+      Capability.editFees,
+      Capability.viewPayroll,
+      Capability.editPayroll,
+      Capability.viewProcurement,
+      Capability.editProcurement,
+      Capability.manageStaff,
+      Capability.manageOwnClassStudents,
+      Capability.viewAllAcademics,
+      Capability.editSyllabusCoverage,
+      Capability.approveSyllabusCoverage,
+      Capability.setSyllabusTargets,
+      Capability.triggerMidTermReport,
+      Capability.manageTimetable,
+      Capability.manageAnnouncements,
       Capability.manageSchoolBranding,
       Capability.manageUserAccounts,
-      Capability.manageTimetable,
+      Capability.manageSports,
     },
     UserRole.dos: {
       Capability.viewAllAcademics,
       Capability.editSyllabusCoverage,
       Capability.triggerMidTermReport,
       Capability.manageTimetable,
+      Capability.manageOwnClassStudents,
     },
     UserRole.hod: {
       Capability.viewOwnDepartmentAcademics,
-      // HOD is also a teacher — full teaching capabilities:
       Capability.enterMarks,
       Capability.checkInAttendance,
       Capability.editSyllabusCoverage,
-      // Plus HOD-only oversight:
       Capability.approveSyllabusCoverage,
       Capability.setSyllabusTargets,
     },
@@ -115,5 +136,32 @@ class Permissions {
 
   static bool can(UserRole role, Capability capability) {
     return matrix[role]?.contains(capability) ?? false;
+  }
+
+  /// Which roles [creatorRole] is allowed to assign when creating a new
+  /// staff account. School admins can create any staff role EXCEPT
+  /// another school admin (or platform admin) — prevents an admin from
+  /// spawning a peer with equal reach. Head teacher/director, being the
+  /// top of the school hierarchy, can create anyone including schoolAdmin.
+  static List<UserRole> assignableRoles(UserRole creatorRole) {
+    const allStaffRoles = [
+      UserRole.schoolAdmin,
+      UserRole.dos,
+      UserRole.hod,
+      UserRole.classTeacher,
+      UserRole.teacher,
+      UserRole.bursar,
+      UserRole.hrOfficer,
+    ];
+
+    switch (creatorRole) {
+      case UserRole.headTeacher:
+      case UserRole.director:
+        return allStaffRoles;
+      case UserRole.schoolAdmin:
+        return allStaffRoles.where((r) => r != UserRole.schoolAdmin).toList();
+      default:
+        return const [];
+    }
   }
 }

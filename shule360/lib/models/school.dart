@@ -17,6 +17,13 @@ class School extends Equatable {
   final String? contactPersonName;
   final String? contactPersonPhone;
   final String? contactPersonEmail;
+  final String? motto;
+  final String? vision;
+  final String? mission;
+  final String? address;
+  final String? email;
+  final String? website;
+  final List<String>? phoneNumbers;
 
   const School({
     required this.id,
@@ -32,6 +39,13 @@ class School extends Equatable {
     this.contactPersonName,
     this.contactPersonPhone,
     this.contactPersonEmail,
+    this.motto,
+    this.vision,
+    this.mission,
+    this.address,
+    this.email,
+    this.website,
+    this.phoneNumbers,
   });
 
   bool get isWithinGracePeriod {
@@ -60,6 +74,13 @@ class School extends Equatable {
       contactPersonName: map['contactPersonName'] as String?,
       contactPersonPhone: map['contactPersonPhone'] as String?,
       contactPersonEmail: map['contactPersonEmail'] as String?,
+      motto: map['motto'] as String?,
+      vision: map['vision'] as String?,
+      mission: map['mission'] as String?,
+      address: map['address'] as String?,
+      email: map['email'] as String?,
+      website: map['website'] as String?,
+      phoneNumbers: (map['phoneNumbers'] as List<dynamic>?)?.map((e) => e as String).toList(),
     );
   }
 
@@ -76,11 +97,19 @@ class School extends Equatable {
     'contactPersonName': contactPersonName,
     'contactPersonPhone': contactPersonPhone,
     'contactPersonEmail': contactPersonEmail,
+    'motto': motto,
+    'vision': vision,
+    'mission': mission,
+    'address': address,
+    'email': email,
+    'website': website,
+    'phoneNumbers': phoneNumbers,
   };
 
   @override
   List<Object?> get props => [
     id, name, slug, district, level, tier, subscriptionPaidUntil, gracePeriodDays,
     logoUrl, primaryColorHex, contactPersonName, contactPersonPhone, contactPersonEmail,
+    motto, vision, mission, address, email, website, phoneNumbers,
   ];
 }

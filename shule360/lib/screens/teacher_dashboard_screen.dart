@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/app_user.dart';
+import '../permissions/permissions.dart';
 import '../permissions/role.dart';
 import 'select_class_subject_screen.dart';
 import 'enter_marks_screen.dart';
 import 'syllabus_tracker_screen.dart';
 import 'teacher_attendance_screen.dart';
-import 'select_my_class_screen.dart';
+import 'register_student_screen.dart';
 
 class TeacherDashboardScreen extends StatelessWidget {
   final AppUser user;
@@ -15,6 +16,9 @@ class TeacherDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canRegisterStudents = Permissions.can(user.role, Capability.manageOwnClassStudents);
+    final hasAssignedClass = user.ownedClassId != null;
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: ConstrainedBox(
@@ -23,6 +27,13 @@ class TeacherDashboardScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Welcome, ${user.fullName}', style: Theme.of(context).textTheme.headlineSmall),
+            if (user.role == UserRole.classTeacher && !hasAssignedClass) ...[
+              const SizedBox(height: 8),
+              Text(
+                'You haven\'t been assigned a class yet — ask your Head Teacher, DOS, or School Admin to assign one before you can register students.',
+                style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13),
+              ),
+            ],
             const SizedBox(height: 24),
             FilledButton.icon(
               icon: const Icon(Icons.login),
@@ -35,11 +46,14 @@ class TeacherDashboardScreen extends StatelessWidget {
             FilledButton.icon(
               icon: const Icon(Icons.edit_note),
               label: const Text('Enter Marks'),
-              onPressed: () => Navigator.of(context).push(
+              onPressed: user.subjectIds.isEmpty
+                  ? null
+                  : () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => SelectClassSubjectScreen(
                     currentUser: user,
                     title: 'Select Class & Subject',
+                    allowedSubjectIds: user.subjectIds,
                     onSelected: (classId, subjectId) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -60,11 +74,14 @@ class TeacherDashboardScreen extends StatelessWidget {
             FilledButton.icon(
               icon: const Icon(Icons.checklist),
               label: const Text('Syllabus Coverage'),
-              onPressed: () => Navigator.of(context).push(
+              onPressed: user.subjectIds.isEmpty
+                  ? null
+                  : () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => SelectClassSubjectScreen(
                     currentUser: user,
                     title: 'Select Class & Subject',
+                    allowedSubjectIds: user.subjectIds,
                     onSelected: (classId, subjectId) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -81,13 +98,15 @@ class TeacherDashboardScreen extends StatelessWidget {
                 ),
               ),
             ),
-            if (user.role == UserRole.classTeacher) ...[
+            if (canRegisterStudents) ...[
               const SizedBox(height: 12),
               FilledButton.icon(
-                icon: const Icon(Icons.class_),
-                label: const Text('Select My Class'),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => SelectMyClassScreen(currentUser: user)),
+                icon: const Icon(Icons.person_add),
+                label: const Text('Register Student'),
+                onPressed: (user.role == UserRole.classTeacher && !hasAssignedClass)
+                    ? null
+                    : () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => RegisterStudentScreen(currentUser: user)),
                 ),
               ),
             ],

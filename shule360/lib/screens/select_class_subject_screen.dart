@@ -4,14 +4,19 @@ import '../models/school_class.dart';
 import '../models/subject.dart';
 import '../services/class_service.dart';
 
-/// A simple picker screen — lets the user choose a class and subject
-/// before continuing to a screen that needs both (marks entry, fees).
-/// [onSelected] is called with (classId, subjectId) once both are chosen.
 class SelectClassSubjectScreen extends StatefulWidget {
   final AppUser currentUser;
   final void Function(String classId, String subjectId) onSelected;
   final String title;
+
+  /// When set, only subjects with this departmentName show up — used so
+  /// an HOD only sees their own department's subjects.
   final String? departmentFilter;
+
+  /// When set, only subjects whose id is in this list show up — used so
+  /// a teacher only sees the subjects THEY were assigned, not every
+  /// subject in the school.
+  final List<String>? allowedSubjectIds;
 
   const SelectClassSubjectScreen({
     super.key,
@@ -19,6 +24,7 @@ class SelectClassSubjectScreen extends StatefulWidget {
     required this.onSelected,
     this.title = 'Select Class & Subject',
     this.departmentFilter,
+    this.allowedSubjectIds,
   });
 
   @override
@@ -32,6 +38,18 @@ class _SelectClassSubjectScreenState extends State<SelectClassSubjectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final baseStream = widget.departmentFilter != null
+        ? _classService.watchDepartmentSubjects(
+      schoolId: widget.currentUser.schoolId,
+      departmentName: widget.departmentFilter!,
+    )
+        : _classService.watchSubjects(widget.currentUser.schoolId);
+
+    final subjectsStream = widget.allowedSubjectIds != null
+        ? baseStream.map((subjects) =>
+        subjects.where((s) => widget.allowedSubjectIds!.contains(s.id)).toList())
+        : baseStream;
+
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       body: Padding(
@@ -46,17 +64,13 @@ class _SelectClassSubjectScreenState extends State<SelectClassSubjectScreen> {
               StreamBuilder<List<SchoolClass>>(
                 stream: _classService.watchClasses(widget.currentUser.schoolId),
                 builder: (context, snapshot) {
-                  var classes = snapshot.data ?? [];
-                  // TODO: once confirmed, filter classes by widget.departmentFilter
-                  // e.g. if (widget.departmentFilter != null) {
-                  //   classes = classes.where((c) => c.departmentName == widget.departmentFilter).toList();
-                  // }
+                  final classes = snapshot.data ?? [];
                   if (classes.isEmpty) {
                     return const Text('No classes yet — create one first.');
                   }
                   return DropdownButton<SchoolClass>(
                     isExpanded: true,
-                    value: _selectedClass,
+                    value: classes.contains(_selectedClass) ? _selectedClass : null,
                     hint: const Text('Choose a class'),
                     items: classes
                         .map((c) => DropdownMenuItem(value: c, child: Text(c.name)))
@@ -69,15 +83,21 @@ class _SelectClassSubjectScreenState extends State<SelectClassSubjectScreen> {
               Text('Subject', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               StreamBuilder<List<Subject>>(
-                stream: _classService.watchSubjects(widget.currentUser.schoolId),
+                stream: subjectsStream,
                 builder: (context, snapshot) {
                   final subjects = snapshot.data ?? [];
                   if (subjects.isEmpty) {
-                    return const Text('No subjects yet — create one first.');
+                    return Text(
+                      widget.allowedSubjectIds != null
+                          ? 'You have no subjects assigned yet — ask your admin.'
+                          : (widget.departmentFilter != null
+                          ? 'No subjects assigned to your department yet — ask your admin.'
+                          : 'No subjects yet — create one first.'),
+                    );
                   }
                   return DropdownButton<Subject>(
                     isExpanded: true,
-                    value: _selectedSubject,
+                    value: subjects.contains(_selectedSubject) ? _selectedSubject : null,
                     hint: const Text('Choose a subject'),
                     items: subjects
                         .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))

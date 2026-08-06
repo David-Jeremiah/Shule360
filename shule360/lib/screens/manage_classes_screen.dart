@@ -8,7 +8,6 @@ import '../models/subject.dart';
 import '../services/class_service.dart';
 import '../services/school_service.dart';
 import '../widgets/sign_out_button.dart';
-import 'subject_departments_screen.dart';
 
 class ManageClassesScreen extends StatefulWidget {
   final AppUser currentUser;
@@ -52,7 +51,7 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
     if (name.isEmpty) return;
     setState(() => _isSavingSubject = true);
     try {
-      await _classService.createSubject(Subject(
+      await _classService.createSubjectIfNotExists(Subject(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         schoolId: widget.currentUser.schoolId,
         name: name,
@@ -193,8 +192,10 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
                     ],
                     const SizedBox(height: 16),
                     if (level != null) ...[
-                      Text('Generate for: ${level == SchoolLevel.primary ? "Primary (P.1–P.7)" : level == SchoolLevel.secondary ? "Secondary (S.1–S.4)" : "Primary & Secondary"}',
-                          style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        'Generate for: ${level == SchoolLevel.primary ? "Primary (P.1–P.7)" : level == SchoolLevel.secondary ? "Secondary (S.1–S.4)" : "Primary & Secondary"}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                       const SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
@@ -248,26 +249,16 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
       builder: (context, schoolSnapshot) {
         final level = schoolSnapshot.data?.level;
         final presets = level == SchoolLevel.primary
-            ? UgandaSubjects.primary
+            ? UgandaSubjects.allPrimary
             : level == SchoolLevel.secondary
             ? UgandaSubjects.secondary
-            : [...UgandaSubjects.primary, ...UgandaSubjects.secondary];
+            : [...UgandaSubjects.allPrimary, ...UgandaSubjects.secondary];
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Subjects', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.account_tree),
-              label: const Text('Assign Subjects to Departments'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => SubjectDepartmentsScreen(currentUser: widget.currentUser),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -284,25 +275,8 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
               ],
             ),
             if (level != null) ...[
-              const SizedBox(height: 12),
-              FilledButton.tonalIcon(
-                icon: const Icon(Icons.playlist_add),
-                label: Text(
-                    'Seed all ${level == SchoolLevel.primary ? "Primary" : level == SchoolLevel.secondary ? "Secondary" : "Primary & Secondary"} subjects'),
-                onPressed: () async {
-                  for (final name in presets) {
-                    _subjectNameController.text = name;
-                    await _addSubject();
-                  }
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${presets.length} subjects added')),
-                    );
-                  }
-                },
-              ),
               const SizedBox(height: 8),
-              Text('Or add one at a time:', style: Theme.of(context).textTheme.bodySmall),
+              Text('Tap to add:', style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 6,
@@ -330,7 +304,6 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.book),
                     title: Text(s.name),
-                    subtitle: s.departmentName != null ? Text(s.departmentName!) : null,
                   ))
                       .toList(),
                 );
